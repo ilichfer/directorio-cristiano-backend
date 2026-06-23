@@ -16,15 +16,26 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
 
     List<Business> findByOwnerId(UUID ownerId);
 
-    @Query("""
-            SELECT b FROM Business b
-            WHERE (:search IS NULL OR 
-                   LOWER(b.name) LIKE LOWER(CONCAT('%', :search, '%')) OR 
-                   LOWER(b.description) LIKE LOWER(CONCAT('%', :search, '%')) OR
-                   LOWER(b.ownerName) LIKE LOWER(CONCAT('%', :search, '%')))
-            AND (:category IS NULL OR b.category = :category)
-            AND (:zone IS NULL OR b.zone = :zone)
-            """)
+    @Query(value = """
+        SELECT * FROM businesses b 
+        WHERE (:search IS NULL OR 
+               b.name ILIKE CONCAT('%', :search, '%') OR 
+               b.description ILIKE CONCAT('%', :search, '%') OR 
+               b.owner_name ILIKE CONCAT('%', :search, '%')) 
+        AND (:category IS NULL OR b.category = :category) 
+        AND (:zone IS NULL OR b.zone = :zone) 
+        ORDER BY b.created_at DESC
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM businesses b 
+        WHERE (:search IS NULL OR 
+               b.name ILIKE CONCAT('%', :search, '%') OR 
+               b.description ILIKE CONCAT('%', :search, '%') OR 
+               b.owner_name ILIKE CONCAT('%', :search, '%')) 
+        AND (:category IS NULL OR b.category = :category) 
+        AND (:zone IS NULL OR b.zone = :zone) 
+        """,
+            nativeQuery = true)
     Page<Business> searchBusinesses(
             @Param("search") String search,
             @Param("category") String category,

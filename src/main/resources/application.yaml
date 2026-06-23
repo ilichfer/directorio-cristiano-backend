@@ -45,3 +45,4 @@ logging:
   level:
     com.directoriocristiano: DEBUG
     org.springframework.security: INFO
+    org.hibernate.orm.jdbc.bind: TRACE

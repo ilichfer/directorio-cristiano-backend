@@ -31,10 +31,7 @@ public class BusinessServiceImpl implements IBusinessService {
 
     public PageResponse<BusinessResponse> getAll(String search, String category, String zone,
                                                   int page, int size, String sortBy, String sortDir) {
-        Sort sort = sortDir.equalsIgnoreCase("desc")
-                ? Sort.by(sortBy).descending()
-                : Sort.by(sortBy).ascending();
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable = PageRequest.of(page, size, Sort.unsorted());
 
         String searchParam = (search != null && !search.isBlank()) ? search : null;
         String categoryParam = (category != null && !category.isBlank() && !category.equals("Todos")) ? category : null;
