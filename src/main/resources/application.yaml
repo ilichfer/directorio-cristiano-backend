@@ -14,7 +14,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: false
+    show-sql: true
     properties:
       hibernate:
         format_sql: true
@@ -34,6 +34,10 @@ app:
   gemini:
     api-key: ${GEMINI_API_KEY:}
     api-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    demo-mode-enabled: ${GOOGLE_DEMO_MODE:true}
 
 springdoc:
   api-docs:

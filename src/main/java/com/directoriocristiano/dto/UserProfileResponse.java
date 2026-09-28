@@ -1,6 +1,7 @@
 package com.directoriocristiano.dto;
 
 import com.directoriocristiano.model.entity.User;
+import com.directoriocristiano.model.enums.AuthProvider;
 import com.directoriocristiano.model.enums.UserType;
 import com.directoriocristiano.model.enums.VerificationStep;
 
@@ -15,7 +16,8 @@ public record UserProfileResponse(
         boolean pastoralVerification,
         String church,
         String pastorName,
-        VerificationStep verificationStep
+        VerificationStep verificationStep,
+        AuthProvider authProvider
 ) {
     public static UserProfileResponse from(User user) {
         return new UserProfileResponse(
@@ -27,7 +29,8 @@ public record UserProfileResponse(
                 user.isPastoralVerification(),
                 user.getChurch(),
                 user.getPastorName(),
-                user.getVerificationStep()
+                user.getVerificationStep(),
+                user.getAuthProvider()
         );
     }
 }
