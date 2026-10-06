@@ -2,6 +2,9 @@ package com.directoriocristiano.service;
 
 import com.directoriocristiano.dto.ChangeRequestDetail;
 import com.directoriocristiano.dto.ChangeRequestDetail.FieldChange;
+import com.directoriocristiano.dto.ModerationEventResponse;
+import com.directoriocristiano.dto.ModerationInboxItem;
+import com.directoriocristiano.dto.PageResponse;
 import com.directoriocristiano.exception.ConflictException;
 import com.directoriocristiano.exception.ForbiddenException;
 import com.directoriocristiano.exception.ResourceNotFoundException;
@@ -19,9 +22,12 @@ import com.directoriocristiano.repository.BusinessRepository;
 import com.directoriocristiano.repository.ModerationEventRepository;
 import com.directoriocristiano.service.notify.ModerationNotifier;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +41,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ModerationServiceImpl implements IModerationService {
+
+    /** Una solicitud que lleva esta cantidad de días o más esperando se destaca (SC-003). */
+    static final int OVERDUE_DAYS = 3;
 
     private static final Map<String, String> LABELS = new LinkedHashMap<>();
 
@@ -58,6 +67,53 @@ public class ModerationServiceImpl implements IModerationService {
     private final BusinessRepository businessRepository;
     private final ModerationEventRepository moderationEventRepository;
     private final ModerationNotifier notifier;
+
+    /** Bandeja ordenada de la más antigua a la más nueva (FR-016). */
+    @Transactional(readOnly = true)
+    public PageResponse<ModerationInboxItem> inbox(String status, int page, int size, User moderator) {
+        ChangeRequestStatus requested = parseStatus(status);
+        Page<BusinessChangeRequest> requests = changeRequestRepository.findByStatusOrderBySubmittedAtAsc(
+                requested, PageRequest.of(page, size));
+        Instant now = Instant.now();
+        List<ModerationInboxItem> content = requests.getContent().stream().map(request -> {
+            Business business = request.getBusiness();
+            long days = Duration.between(request.getSubmittedAt(), now).toDays();
+            return new ModerationInboxItem(
+                    request.getId(),
+                    request.getType(),
+                    business.getId(),
+                    business.getName(),
+                    business.getCategory(),
+                    business.getOwnerName(),
+                    request.getSubmittedAt(),
+                    days,
+                    requested == ChangeRequestStatus.pending && days >= OVERDUE_DAYS,
+                    isOwner(business, moderator));
+        }).toList();
+        return PageResponse.from(requests, content);
+    }
+
+    /** Historial de moderación de un negocio, el más reciente primero (FR-024). */
+    @Transactional(readOnly = true)
+    public List<ModerationEventResponse> history(UUID businessId) {
+        if (!businessRepository.existsById(businessId)) {
+            throw new ResourceNotFoundException("Negocio", "id", businessId);
+        }
+        return moderationEventRepository.findByBusinessIdOrderByCreatedAtDesc(businessId).stream()
+                .map(ModerationEventResponse::from)
+                .toList();
+    }
+
+    private static ChangeRequestStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return ChangeRequestStatus.pending;
+        }
+        try {
+            return ChangeRequestStatus.valueOf(status.trim().toLowerCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Indica un estado válido.");
+        }
+    }
 
     @Transactional(readOnly = true)
     public ChangeRequestDetail detail(UUID requestId, User moderator) {
