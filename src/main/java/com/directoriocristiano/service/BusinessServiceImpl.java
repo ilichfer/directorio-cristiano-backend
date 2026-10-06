@@ -1,11 +1,13 @@
 package com.directoriocristiano.service;
 
 import com.directoriocristiano.dto.*;
+import com.directoriocristiano.exception.ForbiddenException;
 import com.directoriocristiano.exception.ResourceNotFoundException;
 import com.directoriocristiano.model.entity.Business;
 import com.directoriocristiano.model.entity.Review;
 import com.directoriocristiano.model.entity.ServiceItem;
 import com.directoriocristiano.model.entity.User;
+import com.directoriocristiano.model.enums.BusinessStatus;
 import com.directoriocristiano.repository.BusinessRepository;
 import com.directoriocristiano.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +32,8 @@ public class BusinessServiceImpl implements IBusinessService {
     private final ReviewRepository reviewRepository;
 
     public PageResponse<BusinessResponse> getAll(String search, String category, String zone,
-                                                  int page, int size, String sortBy, String sortDir) {
+                                                  int page, int size, String sortBy, String sortDir,
+                                                  User viewer) {
         Pageable pageable = PageRequest.of(page, size, Sort.unsorted());
 
         String searchParam = (search != null && !search.isBlank()) ? search : null;
@@ -41,16 +44,40 @@ public class BusinessServiceImpl implements IBusinessService {
                 searchParam, categoryParam, zoneParam, pageable);
 
         List<BusinessResponse> content = businessPage.getContent().stream()
-                .map(BusinessResponse::from)
+                .map(b -> BusinessResponse.from(b, viewer != null))
                 .toList();
 
         return PageResponse.from(businessPage, content);
     }
 
-    public BusinessResponse getById(UUID id) {
+    public BusinessResponse getById(UUID id, User viewer) {
+        Business business = findVisible(id, viewer);
+        return BusinessResponse.from(business, viewer != null);
+    }
+
+    /**
+     * Un negocio no publicado no existe para el público (FR-007): solo lo ven su dueño y los
+     * moderadores.
+     */
+    private Business findVisible(UUID id, User viewer) {
         Business business = businessRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Negocio", "id", id));
-        return BusinessResponse.from(business);
+        if (business.getStatus() != BusinessStatus.published && !isOwnerOrModerator(business, viewer)) {
+            throw new ResourceNotFoundException("Negocio", "id", id);
+        }
+        return business;
+    }
+
+    private boolean isOwnerOrModerator(Business business, User viewer) {
+        if (viewer == null) {
+            return false;
+        }
+        return viewer.isModerator() || isOwner(business, viewer);
+    }
+
+    private boolean isOwner(Business business, User user) {
+        return user != null && business.getOwner() != null
+                && business.getOwner().getId().equals(user.getId());
     }
 
     public List<BusinessResponse> getMyBusinesses(User user) {
@@ -107,7 +134,7 @@ public class BusinessServiceImpl implements IBusinessService {
                 .orElseThrow(() -> new ResourceNotFoundException("Negocio", "id", id));
 
         if (!business.getOwner().getId().equals(owner.getId())) {
-            throw new IllegalArgumentException("No tienes permiso para modificar este negocio");
+            throw new ForbiddenException("No tienes permiso para modificar este negocio.");
         }
 
         business.setName(request.name());
@@ -149,7 +176,7 @@ public class BusinessServiceImpl implements IBusinessService {
                 .orElseThrow(() -> new ResourceNotFoundException("Negocio", "id", id));
 
         if (!business.getOwner().getId().equals(owner.getId())) {
-            throw new IllegalArgumentException("No tienes permiso para eliminar este negocio");
+            throw new ForbiddenException("No tienes permiso para eliminar este negocio.");
         }
 
         businessRepository.delete(business);
@@ -158,7 +185,12 @@ public class BusinessServiceImpl implements IBusinessService {
     @Transactional
     public ReviewResponse addReview(UUID businessId, ReviewRequest request, User user) {
         Business business = businessRepository.findById(businessId)
+                .filter(b -> b.getStatus() == BusinessStatus.published)
                 .orElseThrow(() -> new ResourceNotFoundException("Negocio", "id", businessId));
+
+        if (isOwner(business, user)) {
+            throw new ForbiddenException("No puedes dejar un testimonio en tu propio negocio.");
+        }
 
         Review review = Review.builder()
                 .business(business)
@@ -179,9 +211,8 @@ public class BusinessServiceImpl implements IBusinessService {
         return ReviewResponse.from(review);
     }
 
-    public PageResponse<ReviewResponse> getReviews(UUID businessId, int page, int size) {
-        Business business = businessRepository.findById(businessId)
-                .orElseThrow(() -> new ResourceNotFoundException("Negocio", "id", businessId));
+    public PageResponse<ReviewResponse> getReviews(UUID businessId, int page, int size, User viewer) {
+        findVisible(businessId, viewer);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Review> reviewPage = reviewRepository.findByBusinessIdOrderByCreatedAtDesc(businessId, pageable);

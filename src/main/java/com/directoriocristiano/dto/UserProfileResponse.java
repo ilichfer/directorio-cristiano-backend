@@ -5,6 +5,7 @@ import com.directoriocristiano.model.enums.AuthProvider;
 import com.directoriocristiano.model.enums.UserType;
 import com.directoriocristiano.model.enums.VerificationStep;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record UserProfileResponse(
@@ -12,6 +13,9 @@ public record UserProfileResponse(
         String email,
         String displayName,
         UserType userType,
+        boolean isEntrepreneur,
+        boolean isModerator,
+        Instant entrepreneurAgreementAt,
         boolean isVerified,
         boolean pastoralVerification,
         String church,
@@ -25,6 +29,9 @@ public record UserProfileResponse(
                 user.getEmail(),
                 user.getDisplayName(),
                 user.getUserType(),
+                user.getUserType() == UserType.entrepreneur,
+                user.isModerator(),
+                user.getEntrepreneurAgreementAt(),
                 user.isVerified(),
                 user.isPastoralVerification(),
                 user.getChurch(),

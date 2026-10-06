@@ -25,6 +25,20 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+management:
+  health:
+    mail:
+      enabled: false
+
 app:
   jwt:
     secret: ${JWT_SECRET:defaultSecretKeyThatMustBeChangedInProductionAtLeast256BitsLong}
@@ -38,6 +52,15 @@ app:
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
     demo-mode-enabled: ${GOOGLE_DEMO_MODE:true}
+
+  # Moderadores del directorio (correos separados por coma). Ver specs/002, research R8.
+  moderators:
+    emails: ${APP_MODERATOR_EMAILS:}
+
+  # Avisos por correo de moderación. Sin SMTP, los avisos van al log (research R7).
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:}
 
 springdoc:
   api-docs:

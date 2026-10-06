@@ -129,6 +129,6 @@ public class TestController {
 
     @GetMapping("/business/{id}")
     public ResponseEntity<BusinessResponse> getBusiness(@PathVariable UUID id) {
-        return ResponseEntity.ok(businessService.getById(id));
+        return ResponseEntity.ok(businessService.getById(id, null));
     }
 }

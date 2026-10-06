@@ -24,6 +24,7 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
                b.owner_name ILIKE CONCAT('%', :search, '%')) 
         AND (:category IS NULL OR b.category = :category) 
         AND (:zone IS NULL OR b.zone = :zone) 
+        AND b.status = 'published'
         ORDER BY b.created_at DESC
         """,
             countQuery = """
@@ -34,6 +35,7 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
                b.owner_name ILIKE CONCAT('%', :search, '%')) 
         AND (:category IS NULL OR b.category = :category) 
         AND (:zone IS NULL OR b.zone = :zone) 
+        AND b.status = 'published'
         """,
             nativeQuery = true)
     Page<Business> searchBusinesses(

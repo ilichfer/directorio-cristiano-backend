@@ -1,5 +1,6 @@
 package com.directoriocristiano.service;
 
+import com.directoriocristiano.config.ModeratorEmails;
 import com.directoriocristiano.dto.AuthResponse;
 import com.directoriocristiano.dto.GoogleAuthRequest;
 import com.directoriocristiano.dto.LoginRequest;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.time.Instant;
 import java.util.Collections;
 
 @Service
@@ -31,6 +33,7 @@ public class AuthServiceImpl implements IAuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final ModeratorEmails moderatorEmails;
     private final String googleClientId;
     private final boolean googleDemoModeEnabled;
     private GoogleIdTokenVerifier googleIdTokenVerifier;
@@ -39,11 +42,13 @@ public class AuthServiceImpl implements IAuthService {
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtProvider jwtProvider,
+            ModeratorEmails moderatorEmails,
             @Value("${app.google.client-id}") String googleClientId,
             @Value("${app.google.demo-mode-enabled}") boolean googleDemoModeEnabled) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
+        this.moderatorEmails = moderatorEmails;
         this.googleClientId = googleClientId;
         this.googleDemoModeEnabled = googleDemoModeEnabled;
     }
@@ -57,7 +62,9 @@ public class AuthServiceImpl implements IAuthService {
                 .email(request.email())
                 .displayName(request.displayName())
                 .passwordHash(passwordEncoder.encode(request.password()))
-                .userType(request.userType())
+                .userType(resolveUserType(request.userType(), request.acceptAgreement()))
+                .entrepreneurAgreementAt(agreementDate(request.userType(), request.acceptAgreement()))
+                .moderator(moderatorEmails.contains(request.email()))
                 .isVerified(false)
                 .pastoralVerification(false)
                 .church(request.church())
@@ -116,7 +123,8 @@ public class AuthServiceImpl implements IAuthService {
             throw new IllegalArgumentException("Falta idToken o demoEmail");
         }
 
-        User user = findOrCreateGoogleUser(email, displayName, googleSub, provider, request.userType());
+        User user = findOrCreateGoogleUser(email, displayName, googleSub, provider,
+                request.userType(), request.acceptAgreement());
 
         String token = jwtProvider.generateAccessToken(user.getId(), user.getEmail());
         String refreshToken = jwtProvider.generateRefreshToken(user.getId());
@@ -124,7 +132,8 @@ public class AuthServiceImpl implements IAuthService {
         return new AuthResponse(user.getId(), user.getEmail(), user.getDisplayName(), token, refreshToken);
     }
 
-    private User findOrCreateGoogleUser(String email, String displayName, String googleSub, AuthProvider provider, UserType requestedUserType) {
+    private User findOrCreateGoogleUser(String email, String displayName, String googleSub, AuthProvider provider,
+                                        UserType requestedUserType, Boolean acceptAgreement) {
         if (googleSub != null) {
             var bySub = userRepository.findByGoogleSub(googleSub);
             if (bySub.isPresent()) {
@@ -145,7 +154,9 @@ public class AuthServiceImpl implements IAuthService {
         User user = User.builder()
                 .email(email)
                 .displayName(displayName)
-                .userType(requestedUserType != null ? requestedUserType : UserType.buyer)
+                .userType(resolveUserType(requestedUserType, acceptAgreement))
+                .entrepreneurAgreementAt(agreementDate(requestedUserType, acceptAgreement))
+                .moderator(moderatorEmails.contains(email))
                 .authProvider(provider)
                 .googleSub(googleSub)
                 .isVerified(true)
@@ -190,6 +201,20 @@ public class AuthServiceImpl implements IAuthService {
         String newRefreshToken = jwtProvider.generateRefreshToken(user.getId());
 
         return new AuthResponse(user.getId(), user.getEmail(), user.getDisplayName(), token, newRefreshToken);
+    }
+
+    /**
+     * Toda cuenta nace como cliente (FR-001); solo es emprendedora si además acepta el acuerdo de
+     * honestidad en la misma petición (FR-002).
+     */
+    private static UserType resolveUserType(UserType requested, Boolean acceptAgreement) {
+        return requested == UserType.entrepreneur && Boolean.TRUE.equals(acceptAgreement)
+                ? UserType.entrepreneur
+                : UserType.buyer;
+    }
+
+    private static Instant agreementDate(UserType requested, Boolean acceptAgreement) {
+        return resolveUserType(requested, acceptAgreement) == UserType.entrepreneur ? Instant.now() : null;
     }
 
     public UserProfileResponse getProfile(User user) {

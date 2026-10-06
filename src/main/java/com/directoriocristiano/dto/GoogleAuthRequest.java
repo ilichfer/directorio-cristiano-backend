@@ -6,5 +6,6 @@ public record GoogleAuthRequest(
         String idToken,
         String demoEmail,
         String demoDisplayName,
-        UserType userType
+        UserType userType,
+        Boolean acceptAgreement
 ) {}

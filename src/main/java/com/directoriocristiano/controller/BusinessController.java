@@ -28,14 +28,15 @@ public class BusinessController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir) {
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @AuthenticationPrincipal User viewer) {
         return ResponseEntity.ok(
-                businessService.getAll(search, category, zone, page, size, sortBy, sortDir));
+                businessService.getAll(search, category, zone, page, size, sortBy, sortDir, viewer));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BusinessResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(businessService.getById(id));
+    public ResponseEntity<BusinessResponse> getById(@PathVariable UUID id, @AuthenticationPrincipal User viewer) {
+        return ResponseEntity.ok(businessService.getById(id, viewer));
     }
 
     @GetMapping("/mine")
@@ -77,7 +78,8 @@ public class BusinessController {
     public ResponseEntity<PageResponse<ReviewResponse>> getReviews(
             @PathVariable UUID id,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(businessService.getReviews(id, page, size));
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal User viewer) {
+        return ResponseEntity.ok(businessService.getReviews(id, page, size, viewer));
     }
 }

@@ -58,6 +58,14 @@ public class User {
     @Column(name = "verification_step", nullable = false)
     private VerificationStep verificationStep;
 
+    /** Fecha en que aceptó el acuerdo de honestidad al activar el perfil de emprendedor. */
+    @Column(name = "entrepreneur_agreement_at")
+    private Instant entrepreneurAgreementAt;
+
+    @Builder.Default
+    @Column(name = "is_moderator", nullable = false)
+    private boolean moderator = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

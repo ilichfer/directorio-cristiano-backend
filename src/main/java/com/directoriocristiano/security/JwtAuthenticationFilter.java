@@ -1,6 +1,7 @@
 package com.directoriocristiano.security;
 
 import com.directoriocristiano.model.entity.User;
+import com.directoriocristiano.model.enums.UserType;
 import com.directoriocristiano.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -15,6 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,9 +39,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
-                List<SimpleGrantedAuthority> authorities = List.of(
-                        new SimpleGrantedAuthority("ROLE_" + user.getUserType().name().toUpperCase())
-                );
+                // Toda cuenta es cliente; emprendedor y moderador se suman (specs/002, research R1).
+                List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                authorities.add(new SimpleGrantedAuthority("ROLE_CLIENT"));
+                if (user.getUserType() == UserType.entrepreneur) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_ENTREPRENEUR"));
+                }
+                if (user.isModerator()) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_MODERATOR"));
+                }
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(user, null, authorities);

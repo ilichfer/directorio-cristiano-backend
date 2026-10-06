@@ -1,5 +1,6 @@
 package com.directoriocristiano.model.entity;
 
+import com.directoriocristiano.model.enums.BusinessStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -60,19 +61,19 @@ public class Business {
     @Column(name = "value")
     private List<String> values = new ArrayList<>();
 
-    @Column(name = "contact_phone", nullable = false)
+    @Column(name = "contact_phone")
     private String contactPhone;
 
-    @Column(name = "contact_whatsapp", nullable = false)
+    @Column(name = "contact_whatsapp")
     private String contactWhatsapp;
 
-    @Column(name = "contact_email", nullable = false)
+    @Column(name = "contact_email")
     private String contactEmail;
 
     @Column(name = "contact_website")
     private String contactWebsite;
 
-    @Column(name = "contact_address", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "contact_address", columnDefinition = "TEXT")
     private String contactAddress;
 
     @OneToMany(mappedBy = "business", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -82,6 +83,17 @@ public class Business {
     @OneToMany(mappedBy = "business", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt DESC")
     private List<Review> reviews = new ArrayList<>();
+
+    /** Solo los negocios {@code published} se muestran al público (FR-007). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private BusinessStatus status;
+
+    @Column(name = "published_at")
+    private Instant publishedAt;
+
+    @Column(name = "suspension_reason", columnDefinition = "TEXT")
+    private String suspensionReason;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -95,6 +107,9 @@ public class Business {
         updatedAt = Instant.now();
         if (rating == null) {
             rating = BigDecimal.ZERO;
+        }
+        if (status == null) {
+            status = BusinessStatus.draft;
         }
     }
 

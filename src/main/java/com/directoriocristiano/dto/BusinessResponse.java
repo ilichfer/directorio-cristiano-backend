@@ -3,6 +3,7 @@ package com.directoriocristiano.dto;
 import com.directoriocristiano.model.entity.Business;
 import com.directoriocristiano.model.entity.Review;
 import com.directoriocristiano.model.entity.ServiceItem;
+import com.directoriocristiano.model.enums.BusinessStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -28,11 +29,22 @@ public record BusinessResponse(
         String contactEmail,
         String contactWebsite,
         String contactAddress,
+        boolean contactLocked,
         List<ServiceResponse> services,
         long reviewsCount,
+        BusinessStatus status,
         Instant createdAt
 ) {
+    /** Respuesta con contactos: solo para quien tiene sesión iniciada (principio II). */
     public static BusinessResponse from(Business business) {
+        return from(business, true);
+    }
+
+    /**
+     * Sin sesión, los datos de contacto se devuelven en {@code null} y {@code contactLocked = true}:
+     * no basta con ocultarlos en pantalla (FR-026).
+     */
+    public static BusinessResponse from(Business business, boolean includeContact) {
         return new BusinessResponse(
                 business.getId(),
                 business.getOwner() != null ? business.getOwner().getId() : null,
@@ -47,13 +59,15 @@ public record BusinessResponse(
                 business.getRating(),
                 business.isFeatured(),
                 business.getValues(),
-                business.getContactPhone(),
-                business.getContactWhatsapp(),
-                business.getContactEmail(),
-                business.getContactWebsite(),
-                business.getContactAddress(),
+                includeContact ? business.getContactPhone() : null,
+                includeContact ? business.getContactWhatsapp() : null,
+                includeContact ? business.getContactEmail() : null,
+                includeContact ? business.getContactWebsite() : null,
+                includeContact ? business.getContactAddress() : null,
+                !includeContact,
                 business.getServices().stream().map(ServiceResponse::from).toList(),
                 business.getReviews().size(),
+                business.getStatus(),
                 business.getCreatedAt()
         );
     }
