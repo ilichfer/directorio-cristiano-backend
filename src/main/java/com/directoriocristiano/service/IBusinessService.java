@@ -11,9 +11,13 @@ public interface IBusinessService {
                                           int page, int size, String sortBy, String sortDir,
                                           User viewer);
     BusinessResponse getById(UUID id, User viewer);
-    List<BusinessResponse> getMyBusinesses(User user);
-    BusinessResponse create(BusinessRequest request, User owner);
-    BusinessResponse update(UUID id, BusinessRequest request, User owner);
+    List<OwnerBusinessResponse> getMyBusinesses(User user);
+    OwnerBusinessResponse create(BusinessRequest request, User owner);
+    OwnerBusinessResponse update(UUID id, BusinessRequest request, User owner);
+    OwnerBusinessResponse submit(UUID id, User owner);
+    OwnerBusinessResponse cancelChangeRequest(UUID id, User owner);
+    OwnerBusinessResponse pause(UUID id, User owner);
+    OwnerBusinessResponse resume(UUID id, User owner);
     void delete(UUID id, User owner);
     ReviewResponse addReview(UUID businessId, ReviewRequest request, User user);
     PageResponse<ReviewResponse> getReviews(UUID businessId, int page, int size, User viewer);

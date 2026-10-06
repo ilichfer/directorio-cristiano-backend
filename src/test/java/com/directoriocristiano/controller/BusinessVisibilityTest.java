@@ -11,6 +11,7 @@ import com.directoriocristiano.repository.ModerationEventRepository;
 import com.directoriocristiano.repository.ReviewRepository;
 import com.directoriocristiano.repository.UserRepository;
 import com.directoriocristiano.security.JwtProvider;
+import com.directoriocristiano.service.BusinessChangeClassifier;
 import com.directoriocristiano.service.BusinessServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * publicados no existen para el público.
  */
 @WebMvcTest(BusinessController.class)
-@Import({SecurityConfig.class, BusinessServiceImpl.class})
+@Import({SecurityConfig.class, BusinessServiceImpl.class, BusinessChangeClassifier.class})
 class BusinessVisibilityTest {
 
     @Autowired

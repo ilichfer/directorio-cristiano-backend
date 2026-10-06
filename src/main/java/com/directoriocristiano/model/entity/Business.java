@@ -33,13 +33,13 @@ public class Business {
     @Column(name = "owner_name", nullable = false)
     private String ownerName;
 
-    @Column(nullable = false)
+    @Column
     private String category;
 
-    @Column(nullable = false)
+    @Column
     private String zone;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     private String slogan;

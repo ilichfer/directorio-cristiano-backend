@@ -40,6 +40,13 @@ public class GlobalExceptionHandler {
         return response;
     }
 
+    @ExceptionHandler(IncompleteBusinessException.class)
+    public ResponseEntity<Map<String, Object>> handleIncomplete(IncompleteBusinessException ex) {
+        ResponseEntity<Map<String, Object>> response = buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+        response.getBody().put("missing", ex.getMissing());
+        return response;
+    }
+
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<Map<String, Object>> handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
         return buildResponse(HttpStatus.CONFLICT,

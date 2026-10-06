@@ -15,8 +15,8 @@ public interface BusinessChangeRequestRepository extends JpaRepository<BusinessC
     /** Como máximo hay una pendiente por negocio (índice único parcial en V7). */
     Optional<BusinessChangeRequest> findByBusinessIdAndStatus(UUID businessId, ChangeRequestStatus status);
 
-    Optional<BusinessChangeRequest> findFirstByBusinessIdAndStatusOrderByReviewedAtDesc(
-            UUID businessId, ChangeRequestStatus status);
+    /** Última solicitud resuelta por un moderador (aprobada o rechazada). */
+    Optional<BusinessChangeRequest> findFirstByBusinessIdAndReviewedAtNotNullOrderByReviewedAtDesc(UUID businessId);
 
     /** Bandeja del moderador: la más antigua primero (FR-016). */
     Page<BusinessChangeRequest> findByStatusOrderBySubmittedAtAsc(ChangeRequestStatus status, Pageable pageable);

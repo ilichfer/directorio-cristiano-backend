@@ -40,23 +40,44 @@ public class BusinessController {
     }
 
     @GetMapping("/mine")
-    public ResponseEntity<List<BusinessResponse>> getMine(@AuthenticationPrincipal User user) {
+    public ResponseEntity<List<OwnerBusinessResponse>> getMine(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(businessService.getMyBusinesses(user));
     }
 
     @PostMapping
-    public ResponseEntity<BusinessResponse> create(
+    public ResponseEntity<OwnerBusinessResponse> create(
             @Valid @RequestBody BusinessRequest request,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(businessService.create(request, user));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BusinessResponse> update(
+    public ResponseEntity<OwnerBusinessResponse> update(
             @PathVariable UUID id,
             @Valid @RequestBody BusinessRequest request,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(businessService.update(id, request, user));
+    }
+
+    @PostMapping("/{id}/submit")
+    public ResponseEntity<OwnerBusinessResponse> submit(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(businessService.submit(id, user));
+    }
+
+    @DeleteMapping("/{id}/change-request")
+    public ResponseEntity<OwnerBusinessResponse> cancelChangeRequest(
+            @PathVariable UUID id, @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(businessService.cancelChangeRequest(id, user));
+    }
+
+    @PostMapping("/{id}/pause")
+    public ResponseEntity<OwnerBusinessResponse> pause(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(businessService.pause(id, user));
+    }
+
+    @PostMapping("/{id}/resume")
+    public ResponseEntity<OwnerBusinessResponse> resume(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(businessService.resume(id, user));
     }
 
     @DeleteMapping("/{id}")
