@@ -1,6 +1,7 @@
 package com.directoriocristiano.repository;
 
 import com.directoriocristiano.model.entity.Business;
+import com.directoriocristiano.model.enums.BusinessStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,6 +16,8 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
     Page<Business> findByFeaturedTrue(Pageable pageable);
 
     List<Business> findByOwnerId(UUID ownerId);
+
+    Page<Business> findByStatus(BusinessStatus status, Pageable pageable);
 
     @Query(value = """
         SELECT * FROM businesses b 

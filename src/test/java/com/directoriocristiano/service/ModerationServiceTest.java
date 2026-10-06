@@ -7,8 +7,10 @@ import com.directoriocristiano.dto.OwnerBusinessResponse;
 import com.directoriocristiano.exception.ConflictException;
 import com.directoriocristiano.exception.ForbiddenException;
 import com.directoriocristiano.exception.IncompleteBusinessException;
+import com.directoriocristiano.exception.ResourceNotFoundException;
 import com.directoriocristiano.model.entity.Business;
 import com.directoriocristiano.model.entity.BusinessChangeRequest;
+import com.directoriocristiano.model.entity.Review;
 import com.directoriocristiano.model.entity.ServiceItem;
 import com.directoriocristiano.model.entity.User;
 import com.directoriocristiano.model.enums.BusinessStatus;
@@ -297,6 +299,52 @@ class ModerationServiceTest {
             assertThat(businessService.pause(business.getId(), owner).business().status()).isEqualTo(BusinessStatus.paused);
             assertThat(businessService.resume(business.getId(), owner).business().status()).isEqualTo(BusinessStatus.published);
             assertThat(requests).isEmpty();
+        }
+
+        @Test
+        void suspenderSinMotivoNoSePermite() {
+            assertThatThrownBy(() -> moderationService.suspend(business.getId(), " ", moderator))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("motivo");
+            assertThat(business.getStatus()).isEqualTo(BusinessStatus.published);
+        }
+
+        @Test
+        void suspenderLoOcultaYCancelaLaPendiente() {
+            businessService.update(business.getId(), edit("+56 9 7000 1111", "$12.000"), owner);
+            BusinessChangeRequest pending = requests.values().iterator().next();
+
+            moderationService.suspend(business.getId(), "Denuncias de cobros no acordados.", moderator);
+
+            assertThat(business.getStatus()).isEqualTo(BusinessStatus.suspended);
+            assertThat(business.getSuspensionReason()).isEqualTo("Denuncias de cobros no acordados.");
+            assertThat(pending.getStatus()).isEqualTo(ChangeRequestStatus.cancelled);
+            assertThatThrownBy(() -> businessService.getById(business.getId(), null))
+                    .isInstanceOf(ResourceNotFoundException.class);
+            verify(notifier).suspended(business);
+        }
+
+        @Test
+        void reactivarLoPublicaYConservaLasResenas() {
+            Review review = Review.builder().id(UUID.randomUUID()).business(business).authorName("Ana").rating(5).build();
+            business.getReviews().add(review);
+            moderationService.suspend(business.getId(), "Revisión de denuncias.", moderator);
+
+            moderationService.reactivate(business.getId(), moderator);
+
+            assertThat(business.getStatus()).isEqualTo(BusinessStatus.published);
+            assertThat(business.getSuspensionReason()).isNull();
+            assertThat(business.getReviews()).containsExactly(review);
+            assertThat(businessService.getById(business.getId(), null)).isNotNull();
+        }
+
+        @Test
+        void soloSeReactivaUnSuspendidoYNoElPropio() {
+            assertThatThrownBy(() -> moderationService.reactivate(business.getId(), moderator))
+                    .isInstanceOf(ConflictException.class);
+            owner.setModerator(true);
+            assertThatThrownBy(() -> moderationService.suspend(business.getId(), "Motivo", owner))
+                    .isInstanceOf(ForbiddenException.class);
         }
 
         private BusinessRequest edit(String phone, String price) {

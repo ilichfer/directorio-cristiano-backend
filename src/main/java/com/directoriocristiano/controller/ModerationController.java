@@ -3,6 +3,7 @@ package com.directoriocristiano.controller;
 import com.directoriocristiano.dto.ChangeRequestDetail;
 import com.directoriocristiano.dto.ModerationDecisionRequest;
 import com.directoriocristiano.dto.ModerationEventResponse;
+import com.directoriocristiano.dto.ModeratedBusinessItem;
 import com.directoriocristiano.dto.ModerationInboxItem;
 import com.directoriocristiano.dto.PageResponse;
 import com.directoriocristiano.model.entity.User;
@@ -30,6 +31,30 @@ public class ModerationController {
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(moderationService.inbox(status, page, size, user));
+    }
+
+    @GetMapping("/businesses")
+    public ResponseEntity<PageResponse<ModeratedBusinessItem>> businesses(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(moderationService.listByStatus(status, page, size, user));
+    }
+
+    @PostMapping("/businesses/{id}/suspend")
+    public ResponseEntity<Void> suspend(
+            @PathVariable UUID id,
+            @RequestBody ModerationDecisionRequest request,
+            @AuthenticationPrincipal User user) {
+        moderationService.suspend(id, request.reason(), user);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/businesses/{id}/reactivate")
+    public ResponseEntity<Void> reactivate(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        moderationService.reactivate(id, user);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/businesses/{id}/history")

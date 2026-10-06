@@ -3,6 +3,7 @@ package com.directoriocristiano.service;
 import com.directoriocristiano.dto.ChangeRequestDetail;
 import com.directoriocristiano.dto.ChangeRequestDetail.FieldChange;
 import com.directoriocristiano.dto.ModerationEventResponse;
+import com.directoriocristiano.dto.ModeratedBusinessItem;
 import com.directoriocristiano.dto.ModerationInboxItem;
 import com.directoriocristiano.dto.PageResponse;
 import com.directoriocristiano.exception.ConflictException;
@@ -24,6 +25,7 @@ import com.directoriocristiano.service.notify.ModerationNotifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -171,6 +173,90 @@ public class ModerationServiceImpl implements IModerationService {
         record(business, request, moderator, ModerationAction.rejected, cleanReason);
         notifier.rejected(request);
         return toDetail(request, moderator, changes);
+    }
+
+    /** Negocios en un estado dado, el de cambio más reciente primero (pestaña "Suspendidos"). */
+    @Transactional(readOnly = true)
+    public PageResponse<ModeratedBusinessItem> listByStatus(String status, int page, int size, User moderator) {
+        BusinessStatus requested = parseBusinessStatus(status);
+        Page<Business> found = businessRepository.findByStatus(requested,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt")));
+        List<ModeratedBusinessItem> content = found.getContent().stream()
+                .map(business -> new ModeratedBusinessItem(
+                        business.getId(),
+                        business.getName(),
+                        business.getCategory(),
+                        business.getOwnerName(),
+                        business.getStatus(),
+                        business.getSuspensionReason(),
+                        business.getUpdatedAt(),
+                        isOwner(business, moderator)))
+                .toList();
+        return PageResponse.from(found, content);
+    }
+
+    /**
+     * Suspende un negocio publicado o pausado (FR-021): deja de verse, se cancela su solicitud
+     * pendiente y el dueño recibe el motivo. Las reseñas se conservan.
+     */
+    @Transactional
+    public void suspend(UUID businessId, String reason, User moderator) {
+        String cleanReason = BusinessProposal.normalize(reason);
+        if (cleanReason == null) {
+            throw new IllegalArgumentException("Escribe el motivo; el emprendedor lo verá.");
+        }
+        Business business = loadBusiness(businessId);
+        if (isOwner(business, moderator)) {
+            throw new ForbiddenException("No puedes suspender tu propio negocio.");
+        }
+        if (business.getStatus() != BusinessStatus.published && business.getStatus() != BusinessStatus.paused) {
+            throw new ConflictException("Solo se puede suspender un negocio publicado o pausado.");
+        }
+
+        changeRequestRepository.findByBusinessIdAndStatus(businessId, ChangeRequestStatus.pending)
+                .ifPresent(pending -> {
+                    pending.setStatus(ChangeRequestStatus.cancelled);
+                    changeRequestRepository.save(pending);
+                    record(business, pending, moderator, ModerationAction.cancelled, cleanReason);
+                });
+
+        business.setStatus(BusinessStatus.suspended);
+        business.setSuspensionReason(cleanReason);
+        Business saved = businessRepository.save(business);
+        record(saved, null, moderator, ModerationAction.suspended, cleanReason);
+        notifier.suspended(saved);
+    }
+
+    /** Vuelve a publicar un negocio suspendido con su última versión aprobada. */
+    @Transactional
+    public void reactivate(UUID businessId, User moderator) {
+        Business business = loadBusiness(businessId);
+        if (isOwner(business, moderator)) {
+            throw new ForbiddenException("No puedes reactivar tu propio negocio.");
+        }
+        if (business.getStatus() != BusinessStatus.suspended) {
+            throw new ConflictException("Solo se puede reactivar un negocio suspendido.");
+        }
+        business.setStatus(BusinessStatus.published);
+        business.setSuspensionReason(null);
+        Business saved = businessRepository.save(business);
+        record(saved, null, moderator, ModerationAction.reactivated, null);
+    }
+
+    private Business loadBusiness(UUID businessId) {
+        return businessRepository.findById(businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Negocio", "id", businessId));
+    }
+
+    private static BusinessStatus parseBusinessStatus(String status) {
+        if (status == null || status.isBlank()) {
+            throw new IllegalArgumentException("Indica un estado válido.");
+        }
+        try {
+            return BusinessStatus.valueOf(status.trim().toLowerCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Indica un estado válido.");
+        }
     }
 
     private BusinessChangeRequest load(UUID requestId) {
